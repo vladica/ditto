@@ -12,9 +12,9 @@
  * SPDX-License-Identifier: EPL-2.0
  */
 
+import { EventSourcePolyfill } from 'event-source-polyfill';
 import * as Environments from './environments/environments.js';
 import * as Utils from './utils.js';
-import {EventSourcePolyfill} from 'event-source-polyfill';
 
 
 const config = {
@@ -307,6 +307,22 @@ export function setAuthHeader(forDevOps) {
   }
 }
 
+function shouldShowAuthDialog(dittoErr) {
+  return (dittoErr.status === 400 && dittoErr.error === "jwt:invalid") ||
+    dittoErr.status === 401;
+}
+
+function showDittoError(dittoErr, response) {
+  if (dittoErr.status && dittoErr.message) {
+    Utils.showError(dittoErr.description + `\n(${dittoErr.error})`, dittoErr.message, dittoErr.status);
+    if (shouldShowAuthDialog(dittoErr)) {
+      document.getElementById('authorize').click();
+    }
+  } else {
+    Utils.showError(JSON.stringify(dittoErr), 'Error', response.status);
+  }
+}
+
 /**
  * Calls the Ditto api
  * @param {String} method 'POST', 'GET', 'DELETE', etc.
@@ -315,34 +331,52 @@ export function setAuthHeader(forDevOps) {
  * @param {Object} additionalHeaders object with additional header fields
  * @param {boolean} returnHeaders request full response instead of json content
  * @param {boolean} devOps default: false. Set true to avoid /api/2 path
+ * @param {boolean} returnErrorJson default: false. Set true to return the response of a failed HTTP call as JSON
  * @return {Object} result as json object
  */
-export async function callDittoREST(method, path, body = null,
-    additionalHeaders = null, returnHeaders = false, devOps = false) {
+export async function callDittoREST(method,
+                                    path,
+                                    body = null,
+                                    additionalHeaders = null,
+                                    returnHeaders = false,
+                                    devOps = false,
+                                    returnErrorJson = false): Promise<any> {
   let response;
+  const contentType = method === 'PATCH' ? 'application/merge-patch+json' : 'application/json';
   try {
     response = await fetch(Environments.current().api_uri + (devOps ? '' : '/api/2') + path, {
       method: method,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': contentType,
         [authHeaderKey]: authHeaderValue,
         ...additionalHeaders,
       },
-      ...(body) && {body: JSON.stringify(body)},
+      ...(method !== 'GET' && method !== 'DELETE' && body !== undefined) && {body: JSON.stringify(body)},
     });
   } catch (err) {
     Utils.showError(err);
     throw err;
   }
   if (!response.ok) {
-    response.json()
+    if (returnErrorJson) {
+      if (returnHeaders) {
+        return response;
+      } else {
+        return response.json().then((dittoErr) => {
+          showDittoError(dittoErr, response);
+          return dittoErr;
+        });
+      }
+    } else {
+      response.json()
         .then((dittoErr) => {
-          Utils.showError(dittoErr.description + `\n(${dittoErr.error})`, dittoErr.message, dittoErr.status);
+          showDittoError(dittoErr, response);
         })
         .catch((err) => {
           Utils.showError('No error details from Ditto', response.statusText, response.status);
         });
-    throw new Error('An error occurred: ' + response.status);
+      throw new Error('An error occurred: ' + response.status);
+    }
   }
   if (response.status !== 204) {
     if (returnHeaders) {
@@ -408,7 +442,7 @@ export async function callConnectionsAPI(operation, successCallback, connectionI
   if (!response.ok) {
     response.json()
         .then((dittoErr) => {
-          Utils.showError(dittoErr.description, dittoErr.message, dittoErr.status);
+          showDittoError(dittoErr, response);
         })
         .catch((err) => {
           Utils.showError('No error details from Ditto', response.statusText, response.status);
@@ -421,7 +455,7 @@ export async function callConnectionsAPI(operation, successCallback, connectionI
         .then((data) => {
           if (data && data['?'] && data['?']['?'].status >= 400) {
             const dittoErr = data['?']['?'].payload;
-            Utils.showError(dittoErr.description, dittoErr.message, dittoErr.status);
+            showDittoError(dittoErr, response);
           } else {
             if (params.unwrapJsonPath) {
               params.unwrapJsonPath.split('.').forEach(function(node) {

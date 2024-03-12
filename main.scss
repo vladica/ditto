@@ -28,6 +28,15 @@
     --bs-table-hover-color: white;
 }
 
+.table-active .bi {
+    color: white;
+}
+
+.table-action-column {
+    text-align: center;
+    width: 27.5px;
+}
+
 td {
     text-overflow: ellipsis;
     overflow: hidden;
@@ -44,10 +53,6 @@ thead {
 
 tbody {
     border-top: 0 !important;
-}
-
-body { 
-    padding-top: 60px;
 }
 
 #authorizationModal label {
@@ -81,8 +86,7 @@ textarea {
 }
 
 .nav-link {
-    padding-top: 0.1rem;
-    padding-bottom: 0.1rem;
+    padding: 0.1rem 0.4rem;
 }
 
 .tab-pane {
@@ -152,7 +156,7 @@ textarea {
 }
 
 h5, h6 {
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
     margin-bottom: 0.25rem;
 }
 
@@ -179,6 +183,17 @@ hr {
     background-color: white;
 }
 
+.editForgroundBig {
+    z-index: 1200;
+    position: fixed;
+    background-color: white;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    height: auto;
+}
+
 .dropdown-menu {
     max-height: 80vh;
     overflow-y: auto;
@@ -195,4 +210,12 @@ h5>.badge {
 
 .autoComplete_wrapper ul > li[aria-selected="true"] {
     background-color: rgba(123, 123, 123, 0.1);
+}
+
+.spinner-border {
+    visibility:hidden;
+}
+
+button.busy .spinner-border {
+    visibility:visible !important;
 }

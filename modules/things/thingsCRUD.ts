@@ -1,22 +1,22 @@
 /*
-* Copyright (c) 2022 Contributors to the Eclipse Foundation
-*
-* See the NOTICE file(s) distributed with this work for additional
-* information regarding copyright ownership.
-*
-* This program and the accompanying materials are made available under the
-* terms of the Eclipse Public License 2.0 which is available at
-* http://www.eclipse.org/legal/epl-2.0
-*
-* SPDX-License-Identifier: EPL-2.0
-*/
+ * Copyright (c) 2022 Contributors to the Eclipse Foundation
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 /* eslint-disable require-jsdoc */
 // @ts-check
 import * as API from '../api.js';
 
 import * as Utils from '../utils.js';
-import * as ThingsSearch from './thingsSearch.js';
 import * as Things from './things.js';
+import * as ThingsSearch from './thingsSearch.js';
 import thingTemplates from './thingTemplates.json';
 
 let thingJsonEditor;
@@ -67,9 +67,10 @@ function onDeleteThingClick() {
 }
 
 function onUpdateThingClick() {
-  API.callDittoREST('PUT', `/things/${dom.crudThings.idValue}`, JSON.parse(thingJsonEditor.getValue()),
+  API.callDittoREST('PATCH', `/things/${dom.crudThings.idValue}`, JSON.parse(thingJsonEditor.getValue()),
       {
-        'if-match': eTag,
+        'if-match': eTag || "*",
+        'if-equal': 'skip-minimizing-merge'
       },
   ).then(() => {
     dom.crudThings.toggleEdit();
@@ -107,7 +108,7 @@ function onThingDefinitionsClick(event) {
   Things.setTheThing(null);
   // isEditing = true;
   dom.inputThingDefinition.value = event.target.textContent;
-  thingJsonEditor.setValue(JSON.stringify(thingTemplates[event.target.textContent], null, 2), -1);
+  thingJsonEditor.setValue(Utils.stringifyPretty(thingTemplates[event.target.textContent]), -1);
 }
 
 /**
@@ -125,12 +126,12 @@ function onThingChanged(thingJson) {
   function updateThingDetailsTable() {
     dom.tbodyThingDetails.innerHTML = '';
     if (thingJson) {
-      Utils.addTableRow(dom.tbodyThingDetails, 'thingId', false, true, thingJson.thingId);
-      Utils.addTableRow(dom.tbodyThingDetails, 'policyId', false, true, thingJson.policyId);
-      Utils.addTableRow(dom.tbodyThingDetails, 'definition', false, true, thingJson.definition ?? '');
-      Utils.addTableRow(dom.tbodyThingDetails, 'revision', false, true, thingJson._revision);
-      Utils.addTableRow(dom.tbodyThingDetails, 'created', false, true, thingJson._created);
-      Utils.addTableRow(dom.tbodyThingDetails, 'modified', false, true, thingJson._modified);
+      Utils.addTableRow(dom.tbodyThingDetails, 'thingId', false, thingJson.thingId, thingJson.thingId);
+      Utils.addTableRow(dom.tbodyThingDetails, 'policyId', false, thingJson.policyId, thingJson.policyId);
+      Utils.addTableRow(dom.tbodyThingDetails, 'definition', false, thingJson.definition ?? ' ', thingJson.definition ?? '');
+      Utils.addTableRow(dom.tbodyThingDetails, 'revision', false, thingJson._revision, thingJson._revision);
+      Utils.addTableRow(dom.tbodyThingDetails, 'created', false, thingJson._created, thingJson._created);
+      Utils.addTableRow(dom.tbodyThingDetails, 'modified', false, thingJson._modified, thingJson._modified);
     }
   }
 
@@ -142,7 +143,8 @@ function onThingChanged(thingJson) {
       delete thingCopy['_revision'];
       delete thingCopy['_created'];
       delete thingCopy['_modified'];
-      thingJsonEditor.setValue(JSON.stringify(thingCopy, null, 2), -1);
+      delete thingCopy['_context'];
+      thingJsonEditor.setValue(Utils.stringifyPretty(thingCopy), -1);
       thingJsonEditor.session.getUndoManager().reset();
     } else {
       dom.crudThings.idValue = null;
@@ -179,7 +181,7 @@ function onEditToggle(event) {
 
   function initializeEditors(thingJson) {
     dom.inputThingDefinition.value = thingJson.definition ?? '';
-    thingJsonEditor.setValue(JSON.stringify(thingJson, null, 2), -1);
+    thingJsonEditor.setValue(Utils.stringifyPretty(thingJson), -1);
   }
 
   function resetEditors() {
